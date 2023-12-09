@@ -34,8 +34,35 @@ public class SteamMarketClient {
     }
 
     private ArrayList<SteamItem> ParseInventoryJson(JSONObject inventory) {
+        JSONArray assets = inventory.getJSONArray("assets");
+        JSONArray descriptions = inventory.getJSONArray("descriptions");
+        ArrayList<SteamItem> steamItems = new ArrayList<>();
+        Map<String, Integer> countMap = new HashMap<>();
 
-        return items;
+        for (var asset : assets) {
+            JSONObject assetJson = (JSONObject) asset;
+            String classid = assetJson.getString("classid");
+
+            if (countMap.containsKey(classid)) {
+                int count = (int)countMap.get(classid);
+                countMap.put(classid, count + 1);
+                continue;
+            }
+
+            countMap.put(classid, 1);
+        }
+
+        ArrayList<String> countMapKeys = new ArrayList<>(countMap.keySet());
+        for (int i = 0; i < countMapKeys.size(); i++) {
+            String key = countMapKeys.get(i);
+            try {
+                steamItems.add(SteamItemFactory.createFromJson(key, countMap.get(key), (JSONObject) descriptions.get(i)));
+            } catch (RuntimeException e) {
+                System.out.println(e.getMessage() + " for " + key);
+            }
+        }
+
+        return steamItems;
     }
 
 
