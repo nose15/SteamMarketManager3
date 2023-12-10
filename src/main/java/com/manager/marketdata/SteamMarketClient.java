@@ -5,7 +5,11 @@ import com.manager.steamitems.SteamItem;
 import com.manager.steamitems.SteamItemFactory;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.json.JSONTokener;
 
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -14,21 +18,50 @@ public class SteamMarketClient {
     private final String steamSecure;
     private final Client client;
     private final String userId;
-    private String appId;
+    private final String appId;
+    private boolean Debug;
+    private ArrayList<SteamItem> inventory;
+    private PriceFetcher priceFetcher;
 
     public SteamMarketClient(String userId, String appId, String steamSecure) {
         this.userId = userId;
         this.appId = appId;
         this.steamSecure = steamSecure;
         this.client = new Client("https://steamcommunity.com");
+        this.Debug = true;
+
+        FetchInventory();
+        this.priceFetcher = new PriceFetcher(this.inventory);
     }
 
-    public ArrayList<SteamItem> getInventory() throws URISyntaxException, ExecutionException, InterruptedException {
-        JSONObject inventoryJson = RetrieveInventoryJson();
-        return ParseInventoryJson(inventoryJson);
+    //TODO: A method that returns a stream of prices.
+    public ArrayList<SteamItem> getInventory() {
+        return this.inventory;
     }
 
-    private JSONObject RetrieveInventoryJson() throws URISyntaxException, ExecutionException, InterruptedException {
+    private void FetchInventory() {
+        JSONObject inventoryJson = new JSONObject();
+
+        if (Debug) {
+            String filePath = "./mockdata/inventoryRequest.json";
+
+            try (FileReader fileReader = new FileReader(filePath)) {
+                //TODO: Diy
+                JSONTokener jsonTokener = new JSONTokener(fileReader);
+                inventoryJson = new JSONObject(jsonTokener);
+
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
+            }
+        }
+        else {
+            inventoryJson = RetrieveInventoryJson();
+        }
+
+        this.inventory = ParseInventoryJson(inventoryJson);
+    }
+
+    private JSONObject RetrieveInventoryJson() {
         this.client.addCookie("steamLoginSecure", this.steamSecure);
         return this.client.GET("/inventory/" + this.userId + "/" + this.appId + "/2?l=english&count=525");
     }
@@ -65,5 +98,7 @@ public class SteamMarketClient {
         return steamItems;
     }
 
-
+    public void SetDebug(boolean value) {
+        this.Debug = value;
+    }
 }

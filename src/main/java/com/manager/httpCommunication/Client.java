@@ -48,19 +48,24 @@ public class Client {
         return cookieMap;
     }
 
-    public JSONObject GET(String url) throws ExecutionException, InterruptedException, URISyntaxException {
-        URI requestUrl = new URI(this.baseUrl + url);
+    public JSONObject GET(String url){
+        try {
+            URI requestUrl = new URI(this.baseUrl + url);
 
-        HttpRequest request = HttpRequest.newBuilder(requestUrl)
-                .header("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
-                .header("Cookie", cookies)
-                .GET()
-                .build();
+            HttpRequest request = HttpRequest.newBuilder(requestUrl)
+                    .header("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+                    .header("Cookie", cookies)
+                    .GET()
+                    .build();
 
-        HttpResponse.BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString();
-        CompletableFuture<HttpResponse<String>> responseCompletableFuture = this.client.sendAsync(request, bodyHandler);
-        HttpResponse<String> response = responseCompletableFuture.get();
+            HttpResponse.BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString();
+            CompletableFuture<HttpResponse<String>> responseCompletableFuture = this.client.sendAsync(request, bodyHandler);
+            HttpResponse<String> response = responseCompletableFuture.get();
 
-        return new JSONObject(response.body());
+            return new JSONObject(response.body());
+        }
+        catch (RuntimeException | InterruptedException | ExecutionException | URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
