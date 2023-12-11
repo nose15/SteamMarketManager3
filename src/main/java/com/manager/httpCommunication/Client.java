@@ -8,10 +8,13 @@ import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 
 public class Client {
     private final HttpClient client;
@@ -48,8 +51,9 @@ public class Client {
         return cookieMap;
     }
 
-    public JSONObject GET(String url){
+    public JSONObject GET(String url) {
         try {
+            url = URLEncoder.encode(url, StandardCharsets.UTF_8);
             URI requestUrl = new URI(this.baseUrl + url);
 
             HttpRequest request = HttpRequest.newBuilder(requestUrl)
@@ -61,7 +65,6 @@ public class Client {
             HttpResponse.BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString();
             CompletableFuture<HttpResponse<String>> responseCompletableFuture = this.client.sendAsync(request, bodyHandler);
             HttpResponse<String> response = responseCompletableFuture.get();
-
             return new JSONObject(response.body());
         }
         catch (RuntimeException | InterruptedException | ExecutionException | URISyntaxException e) {

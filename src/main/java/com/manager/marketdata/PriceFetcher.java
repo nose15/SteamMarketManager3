@@ -10,6 +10,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class PriceFetcher {
     ArrayList<SteamItem> inventory;
@@ -23,27 +24,42 @@ public class PriceFetcher {
     private void StartFetchingPrices() {
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
+        AtomicInteger currentStep = new AtomicInteger(0);
         scheduler.scheduleAtFixedRate(() -> {
-            for (int i = 0; i < 20; i++) {
-                SteamItem item = this.inventory.get(i);
-                if (item.isMarketable()) {
-                    float price = FetchPrice(item.getMarketHashName());
-                    item.setPrice(price);
-                }
-
-                if (i > this.inventory.size())
-                {
-                    i = 0;
-                }
-            }
+            FetchPrices(currentStep, 20);
         }, 0, 60, TimeUnit.SECONDS);
     }
 
-    private float FetchPrice(String marketHashName){
-        JSONObject priceOverview = client.GET(marketHashName);
-        System.out.println(priceOverview);
-        float price = Float.parseFloat(priceOverview.getString("lowest_price").substring(1));
-        return price;
+    private void FetchPrices(AtomicInteger begin, int count) {
+        int step = begin.get();
 
+        for (int i = step; i < step + (count - 1); i++) {
+            SteamItem item = this.inventory.get(i);
+            if (item.isMarketable()) {
+                try {
+                    float price = FetchSinglePrice(item.getMarketHashName());
+                    item.setPrice(price);
+                }
+                catch (RuntimeException e) {
+                    System.out.println(e.getMessage() + " for " + item.getMarketHashName());
+                }
+            }
+
+            if (i == inventory.size() - 1) {
+                begin.set(-count);
+                break;
+            }
+        }
+
+        begin.addAndGet(count);
+    }
+
+    private float FetchSinglePrice(String marketHashName){
+        try {
+            JSONObject priceOverview = client.GET(marketHashName);
+            return Float.parseFloat(priceOverview.getString("lowest_price").substring(1));
+        } catch (RuntimeException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -7,13 +7,13 @@ public class SteamItem {
     private final int amount;
     private final String marketHashName;
     private float price;
+    private final String classId;
 
     public SteamItem(JSONObject jsonObject) {
-        this.amount = jsonObject.getInt("amount");
-        JSONObject description = jsonObject.getJSONObject("description");
-
-        this.marketHashName = description.getString("market_hash_name");
-        this.marketable = description.getInt("marketable") != 0;
+        this.classId = jsonObject.getString("classid");
+        this.amount = jsonObject.getInt("amount");;
+        this.marketHashName = jsonObject.getJSONObject("description").getString("market_hash_name");
+        this.marketable = jsonObject.getJSONObject("description").getInt("marketable") != 0;
         this.price = -1;
     }
 
@@ -28,6 +28,8 @@ public class SteamItem {
     public void setPrice(float newPrice) {
         this.price = newPrice;
     }
+
+    public String getClassId() { return this.classId; }
 
     public float getPricePerPiece() {
         return this.price;
