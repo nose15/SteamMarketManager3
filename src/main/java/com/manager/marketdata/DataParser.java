@@ -105,7 +105,6 @@ public class DataParser {
 
         for (SteamItem item : items) {
             String marketHashName = item.getMarketHashName();
-            System.out.println(marketHashName);
 
             if (hashNameCount.containsKey(marketHashName)) {
                 int value = hashNameCount.get(marketHashName);

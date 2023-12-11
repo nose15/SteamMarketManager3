@@ -22,12 +22,20 @@ public class Client {
     private String cookies;
 
     public Client(String baseUrl) {
+        if (baseUrl.isEmpty()) {
+            throw new IllegalArgumentException("Passed url is empty");
+        }
+
         this.client = HttpClient.newHttpClient();
         this.baseUrl = baseUrl;
         cookies = "";
     }
 
     public void setBaseUrl(String url) {
+        if (url.isEmpty()) {
+            throw new IllegalArgumentException("Passed url is empty");
+        }
+
         this.baseUrl = url;
     }
 
@@ -36,11 +44,19 @@ public class Client {
     }
 
     public void addCookie(String name, String value) {
-        cookies+= name + "=" + value + ";";
+        if (name.isEmpty() || value.isEmpty()) {
+            throw new IllegalArgumentException("Either key or value is empty");
+        }
+
+        cookies += name + "=" + value + ";";
     }
 
     public Map<String, String> getCookies() {
         Map<String, String> cookieMap = new HashMap<>();
+
+        if (cookies.isEmpty()) {
+            return cookieMap;
+        }
 
         String[] cookieArray = cookies.split(";");
         for (String cookie : cookieArray) {
@@ -51,7 +67,7 @@ public class Client {
         return cookieMap;
     }
 
-    public JSONObject GET(String url) {
+    public JSONObject GET(String url) throws RequestException {
         try {
             url = URLEncoder.encode(url, StandardCharsets.UTF_8);
             URI requestUrl = new URI(this.baseUrl + url);
@@ -65,10 +81,16 @@ public class Client {
             HttpResponse.BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString();
             CompletableFuture<HttpResponse<String>> responseCompletableFuture = this.client.sendAsync(request, bodyHandler);
             HttpResponse<String> response = responseCompletableFuture.get();
+            if (response.statusCode() == 429) {
+                throw new RequestException("429");
+            }
+
             return new JSONObject(response.body());
+        } catch (NullPointerException e) {
+            throw new IllegalArgumentException("Passed url is empty");
         }
         catch (RuntimeException | InterruptedException | ExecutionException | URISyntaxException e) {
-            throw new RuntimeException(e);
+            throw new RequestException(e);
         }
     }
 }

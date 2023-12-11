@@ -1,6 +1,7 @@
 package com.manager.marketdata;
 
 import com.manager.httpCommunication.Client;
+import com.manager.httpCommunication.RequestException;
 import com.manager.steamitems.SteamItem;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -27,7 +28,12 @@ public class SteamMarketClient {
         this.client = new Client("https://steamcommunity.com");
         this.Debug = false;
 
-        FetchInventory();
+        try {
+            FetchInventory();
+        } catch (FetchingException e) {
+            throw new RuntimeException(e);
+        }
+
         this.priceFetcher = new PriceFetcher(this.inventory);
     }
 
@@ -38,7 +44,12 @@ public class SteamMarketClient {
         this.client = new Client("https://steamcommunity.com");
         this.Debug = debug;
 
-        FetchInventory();
+        try {
+            FetchInventory();
+        } catch (FetchingException e) {
+            throw new RuntimeException(e);
+        }
+
         this.priceFetcher = new PriceFetcher(this.inventory);
     }
 
@@ -46,14 +57,18 @@ public class SteamMarketClient {
         return this.inventory;
     }
 
-    private void FetchInventory() {
+    private void FetchInventory() throws FetchingException{
         JSONObject inventoryJson = Debug ? FetchJsonFromFile("./mockdata/inventoryRequest.json") : RetrieveInventoryJson();
         this.inventory = DataParser.ParseInventory(inventoryJson);
     }
 
-    private JSONObject RetrieveInventoryJson() {
+    private JSONObject RetrieveInventoryJson() throws FetchingException {
         this.client.addCookie("steamLoginSecure", this.steamSecure);
-        return this.client.GET("/inventory/" + this.userId + "/" + this.appId + "/2?l=english&count=525");
+        try {
+            return this.client.GET("/inventory/" + this.userId + "/" + this.appId + "/2?l=english&count=525");
+        } catch (RequestException e) {
+            throw new FetchingException(e);
+        }
     }
 
     public void SetDebug(boolean value) {

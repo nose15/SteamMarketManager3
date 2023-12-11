@@ -1,7 +1,9 @@
 package com.manager.marketdata;
 
 import com.manager.httpCommunication.Client;
+import com.manager.httpCommunication.RequestException;
 import com.manager.steamitems.SteamItem;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.net.URISyntaxException;
@@ -40,8 +42,8 @@ public class PriceFetcher {
                     float price = FetchSinglePrice(item.getMarketHashName());
                     item.setPrice(price);
                 }
-                catch (RuntimeException e) {
-                    System.out.println(e.getMessage() + " for " + item.getMarketHashName());
+                catch (IllegalArgumentException | FetchingException e) {
+                    System.out.println(e + e.getMessage() + " for " + item.getMarketHashName());
                 }
             }
 
@@ -54,12 +56,20 @@ public class PriceFetcher {
         begin.addAndGet(count);
     }
 
-    private float FetchSinglePrice(String marketHashName){
+    private float FetchSinglePrice(String marketHashName) throws FetchingException {
         try {
             JSONObject priceOverview = client.GET(marketHashName);
+            return ParsePriceFromJson(priceOverview);
+        } catch (RequestException | ParsingException e) {
+            throw new FetchingException(e);
+        }
+    }
+
+    private float ParsePriceFromJson(JSONObject priceOverview) throws ParsingException {
+        try {
             return Float.parseFloat(priceOverview.getString("lowest_price").substring(1));
-        } catch (RuntimeException e) {
-            throw new RuntimeException(e);
+        } catch (JSONException e) {
+            throw new ParsingException(e);
         }
     }
 }

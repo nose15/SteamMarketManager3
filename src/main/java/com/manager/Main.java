@@ -18,20 +18,20 @@ public class Main {
 
         ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
 
-//        AtomicInteger currentStep = new AtomicInteger();
-//        scheduler.scheduleAtFixedRate(() -> {
-//            System.out.println("Inventory Fetch");
-//            for (int i = currentStep.get(); i < currentStep.get() + 20; i++) {
-//                SteamItem item = inventory.get(i);
-//                System.out.println(item.getMarketHashName() + " " + item.getPricePerPiece());
-//
-//                if (i == inventory.size() - 1) {
-//                    currentStep.set(-20);
-//                    break;
-//                }
-//            }
-//
-//            currentStep.addAndGet(20);
-//        }, 10, 60, TimeUnit.SECONDS);
+        AtomicInteger currentStep = new AtomicInteger();
+        scheduler.scheduleAtFixedRate(() -> {
+            System.out.println("Inventory Fetch");
+            for (int i = currentStep.get(); i < currentStep.get() + 20; i++) {
+                SteamItem item = inventory.get(i);
+                System.out.println(item.getMarketHashName() + " " + item.getPricePerPiece());
+
+                if (i == inventory.size() - 1) {
+                    currentStep.set(-20);
+                    break;
+                }
+            }
+
+            currentStep.addAndGet(20);
+        }, 10, 60, TimeUnit.SECONDS);
     }
 }
