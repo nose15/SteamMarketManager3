@@ -31,6 +31,10 @@ public class Client {
         cookies = "";
     }
 
+    public String GetBaseUrl() {
+        return this.baseUrl;
+    }
+
     public void setBaseUrl(String url) {
         if (url.isEmpty()) {
             throw new IllegalArgumentException("Passed url is empty");
@@ -39,19 +43,7 @@ public class Client {
         this.baseUrl = url;
     }
 
-    public String getBaseUrl() {
-        return this.baseUrl;
-    }
-
-    public void addCookie(String name, String value) {
-        if (name.isEmpty() || value.isEmpty()) {
-            throw new IllegalArgumentException("Either key or value is empty");
-        }
-
-        cookies += name + "=" + value + ";";
-    }
-
-    public Map<String, String> getCookies() {
+    public Map<String, String> GetCookies() {
         Map<String, String> cookieMap = new HashMap<>();
 
         if (cookies.isEmpty()) {
@@ -65,6 +57,14 @@ public class Client {
         }
 
         return cookieMap;
+    }
+
+    public void AddCookie(String name, String value) {
+        if (name.isEmpty() || value.isEmpty()) {
+            throw new IllegalArgumentException("Either key or value is empty");
+        }
+
+        cookies += name + "=" + value + ";";
     }
 
     public JSONObject GET(String url) throws RequestException {
@@ -81,8 +81,9 @@ public class Client {
             HttpResponse.BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString();
             CompletableFuture<HttpResponse<String>> responseCompletableFuture = this.client.sendAsync(request, bodyHandler);
             HttpResponse<String> response = responseCompletableFuture.get();
-            if (response.statusCode() == 429) {
-                throw new RequestException("429");
+
+            if (response.statusCode() != 200) {
+                throw new RequestException(String.valueOf(response.statusCode()));
             }
 
             return new JSONObject(response.body());

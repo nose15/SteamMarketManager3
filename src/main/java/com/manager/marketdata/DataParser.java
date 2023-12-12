@@ -1,5 +1,6 @@
 package com.manager.marketdata;
 
+import com.manager.steamitems.Case;
 import com.manager.steamitems.SteamItem;
 import com.manager.steamitems.SteamItemFactory;
 import org.json.JSONArray;
@@ -11,6 +12,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+// TODO: The item amounts are not parsed properly. Its probably because of duplicate class ids. Need to rebuild the whole parser
+// TODO: Probably the right thing to do would be to delete the duplicate classes while fetching the assets
 
 public class DataParser {
     public static ArrayList<SteamItem> ParseInventory(JSONObject inventory) {
@@ -20,7 +23,7 @@ public class DataParser {
         Map<String, Integer> assetMap = ParseAssets(assets);
         Map<String, JSONObject> itemsMap = MatchDescriptions(descriptions, assetMap);
 
-        return DataParser.CreateItemsFromMap(itemsMap);
+        return CreateItemsFromMap(itemsMap);
     }
 
     private static Map<String, Integer> ParseAssets(JSONArray assets) {
@@ -88,15 +91,21 @@ public class DataParser {
                 }
             }
 
-            String newClassId = duplicateItems.get(0).getClassId();
+            SteamItem donorObj = duplicateItems.get(0);
+            int newIndex = steamItems.indexOf(donorObj);
+            String newClassId = donorObj.getClassId();
+
+            String[] classNameArr = donorObj.getClass().getName().split("\\.");
+            String className = classNameArr[classNameArr.length - 1];
 
             int totalAmount = 0;
             for (SteamItem duplicateItem : duplicateItems) {
                 totalAmount += duplicateItem.getAmount();
+                steamItems.remove(duplicateItem);
             }
 
-            //TODO: Once a new factory and new Item constructors are done, create a new object
-            System.out.println("DUP: " + duplicateName);
+            SteamItem newItem = SteamItemFactory.CreateSteamItem(newClassId, totalAmount, className, duplicateName, donorObj.isMarketable());
+            steamItems.add(newIndex, newItem);
         }
     }
 

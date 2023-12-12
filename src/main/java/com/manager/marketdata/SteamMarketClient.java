@@ -17,62 +17,58 @@ public class SteamMarketClient {
     private final Client client;
     private final String userId;
     private final String appId;
-    private boolean Debug;
+    private boolean debug;
     private ArrayList<SteamItem> inventory;
     private final PriceFetcher priceFetcher;
-
-    public SteamMarketClient(String userId, String appId, String steamSecure) {
-        this.userId = userId;
-        this.appId = appId;
-        this.steamSecure = steamSecure;
-        this.client = new Client("https://steamcommunity.com");
-        this.Debug = false;
-
-        try {
-            FetchInventory();
-        } catch (FetchingException e) {
-            throw new RuntimeException(e);
-        }
-
-        this.priceFetcher = new PriceFetcher(this.inventory);
-    }
 
     public SteamMarketClient(String userId, String appId, String steamSecure, boolean debug) {
         this.userId = userId;
         this.appId = appId;
         this.steamSecure = steamSecure;
         this.client = new Client("https://steamcommunity.com");
-        this.Debug = debug;
+        this.debug = debug;
+        this.inventory = new ArrayList<>();
+        this.priceFetcher = new PriceFetcher(this.inventory, debug);
+    }
 
+    public void Run() {
         try {
             FetchInventory();
+            priceFetcher.Run();
         } catch (FetchingException e) {
             throw new RuntimeException(e);
-        }
-
-        this.priceFetcher = new PriceFetcher(this.inventory);
-    }
-
-    public ArrayList<SteamItem> getInventory() {
-        return this.inventory;
-    }
-
-    private void FetchInventory() throws FetchingException{
-        JSONObject inventoryJson = Debug ? FetchJsonFromFile("./mockdata/inventoryRequest.json") : RetrieveInventoryJson();
-        this.inventory = DataParser.ParseInventory(inventoryJson);
-    }
-
-    private JSONObject RetrieveInventoryJson() throws FetchingException {
-        this.client.addCookie("steamLoginSecure", this.steamSecure);
-        try {
-            return this.client.GET("/inventory/" + this.userId + "/" + this.appId + "/2?l=english&count=525");
-        } catch (RequestException e) {
-            throw new FetchingException(e);
         }
     }
 
     public void SetDebug(boolean value) {
-        this.Debug = value;
+        this.debug = value;
+    }
+
+    public ArrayList<SteamItem> GetInventory() {
+        return this.inventory;
+    }
+
+    private void FetchInventory() throws FetchingException {
+        JSONObject inventoryJson;
+
+        if (debug) {
+            inventoryJson = FetchJsonFromFile("./mockdata/inventoryRequest.json");
+        }
+        else {
+            inventoryJson = RetrieveInventoryJson();
+        }
+
+        this.inventory.addAll(DataParser.ParseInventory(inventoryJson));
+    }
+
+    private JSONObject RetrieveInventoryJson() throws FetchingException {
+        this.client.AddCookie("steamLoginSecure", this.steamSecure);
+        try {
+            return this.client.GET("/inventory/" + this.userId + "/" + this.appId + "/2?l=english&count=525");
+        }
+        catch (RequestException e) {
+            throw new FetchingException(e);
+        }
     }
 
     private JSONObject FetchJsonFromFile(String filePath) {

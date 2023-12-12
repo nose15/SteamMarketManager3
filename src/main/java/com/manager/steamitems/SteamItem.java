@@ -11,7 +11,7 @@ public class SteamItem {
 
     public SteamItem(JSONObject jsonObject) {
         this.classId = jsonObject.getString("classid");
-        this.amount = jsonObject.getInt("amount");;
+        this.amount = jsonObject.getInt("amount");
         this.marketHashName = jsonObject.getJSONObject("description").getString("market_hash_name");
         this.marketable = jsonObject.getJSONObject("description").getInt("marketable") != 0;
         this.price = -1;
