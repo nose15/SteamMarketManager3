@@ -69,7 +69,6 @@ public class Client {
 
     public JSONObject GET(String url) throws RequestException {
         try {
-            url = URLEncoder.encode(url, StandardCharsets.UTF_8);
             URI requestUrl = new URI(this.baseUrl + url);
 
             HttpRequest request = HttpRequest.newBuilder(requestUrl)

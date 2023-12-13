@@ -3,6 +3,7 @@ package com.manager.marketdata;
 import com.manager.steamitems.Case;
 import com.manager.steamitems.SteamItem;
 import com.manager.steamitems.SteamItemFactory;
+import com.manager.steamitems.SteamItemType;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -16,119 +17,172 @@ import java.util.stream.Collectors;
 // TODO: Probably the right thing to do would be to delete the duplicate classes while fetching the assets
 
 public class DataParser {
+    private DataParser() {
+        throw new AssertionError("Instantiation of static class DataParser");
+    }
+
     public static ArrayList<SteamItem> ParseInventory(JSONObject inventory) {
         JSONArray assets = inventory.getJSONArray("assets");
         JSONArray descriptions = inventory.getJSONArray("descriptions");
 
-        Map<String, Integer> assetMap = ParseAssets(assets);
-        Map<String, JSONObject> itemsMap = MatchDescriptions(descriptions, assetMap);
+        Map<String, Integer> assetCounts = CountAssets(ParseAssetClassIds(assets));
+        ArrayList<JSONObject> itemDescriptions = ParseDescriptions(descriptions);
+        ArrayList<JSONObject> itemJsons = MatchCountsToDescriptions(itemDescriptions, assetCounts);
 
-        return CreateItemsFromMap(itemsMap);
+        return CreateItemsFromJsons(itemJsons);
     }
 
-    private static Map<String, Integer> ParseAssets(JSONArray assets) {
-        Map<String, Integer> countMap = new HashMap<>();
+    private static Map<String, Integer> CountAssets(ArrayList<String> classIds) {
+        Map<String, Integer> counts = new HashMap<>();
 
-        for (var asset : assets) {
-            JSONObject assetJson = (JSONObject) asset;
-            String classid = assetJson.getString("classid");
-
-            if (countMap.containsKey(classid)) {
-                int count = countMap.get(classid);
-                countMap.put(classid, count + 1);
+        for (var classId : classIds) {
+            if (counts.containsKey(classId)) {
+                int count = counts.get(classId);
+                counts.put(classId, count + 1);
                 continue;
             }
 
-            countMap.put(classid, 1);
+            counts.put(classId, 1);
         }
 
-        return countMap;
+        return counts;
     }
 
-    private static Map<String, JSONObject> MatchDescriptions(JSONArray descriptions, Map<String, Integer> assets) {
-        Map<String, JSONObject> assetDescriptions = new HashMap<>();
+    private static ArrayList<String> ParseAssetClassIds(JSONArray assets) {
+        ArrayList<String> classIds = new ArrayList<>();
 
-        ArrayList<String> assetKeys = new ArrayList<>(assets.keySet());
-        for (int i = 0; i < assetKeys.size(); i++) {
-            String key = assetKeys.get(i);
+        for (Object assetObj : assets) {
+            JSONObject asset = (JSONObject) assetObj;
+            classIds.add(asset.getString("classid"));
+        }
+
+        return classIds;
+    }
+
+    private static ArrayList<JSONObject> ParseDescriptions(JSONArray descriptions) {
+        ArrayList<JSONObject> itemsData = new ArrayList<>();
+        ArrayList<String> usedHashNames = new ArrayList<>();
+
+        for (Object description : descriptions) {
             try {
-                JSONObject description = descriptions.getJSONObject(i);
-                description.put("amount", assets.get(key));
-                assetDescriptions.put(key, description);
-            } catch (RuntimeException ignored) {}
+                JSONObject desc = (JSONObject) description;
+                int usedHashNamesIndex = usedHashNames.indexOf(desc.getString("market_hash_name"));
+
+
+                if (usedHashNamesIndex == -1) {
+                    JSONObject itemData = FetchItemData(desc);
+                    itemsData.add(itemData);
+                    usedHashNames.add(itemData.getString("market_hash_name"));
+                    continue;
+                }
+
+                AddDuplicateClassId(itemsData.get(usedHashNamesIndex), desc.getString("classid"));
+            } catch (NullPointerException ignored) {}
         }
 
-        return assetDescriptions;
+        return itemsData;
     }
 
-    private static ArrayList<SteamItem> CreateItemsFromMap(Map<String, JSONObject> itemsMap) {
+    private static JSONObject FetchItemData(JSONObject desc) {
+        JSONObject itemData = new JSONObject();
+
+        itemData.put("classid", desc.getString("classid"));
+        itemData.put("market_hash_name", desc.getString("market_hash_name"));
+        itemData.put("marketable", desc.getInt("marketable") != 0);
+        itemData.put("type", ParseType(desc));
+
+        return itemData;
+    }
+
+    private static ArrayList<JSONObject> MatchCountsToDescriptions(ArrayList<JSONObject> descriptions, Map<String, Integer> assetCounts) {
+        for (JSONObject description : descriptions) {
+            JSONArray duplicateClassIds = description.optJSONArray("duplicate_classids");
+
+            if (duplicateClassIds == null) {
+                String classId = description.getString("classid");
+                int amount = assetCounts.get(classId);
+                description.put("amount", amount);
+                continue;
+            }
+
+            description.remove("duplicate_classids");
+            description.put("amount", SumDuplicates(duplicateClassIds, assetCounts));
+        }
+
+        return descriptions;
+    }
+
+    private static ArrayList<SteamItem> CreateItemsFromJsons(ArrayList<JSONObject> itemJsons) {
         ArrayList<SteamItem> steamItems = new ArrayList<>();
-        ArrayList<String> keys = new ArrayList<>(itemsMap.keySet());
 
-        for (String key : keys) {
+        for (JSONObject itemJson : itemJsons) {
             try {
-                steamItems.add(SteamItemFactory.CreateSteamItem(key, itemsMap.get(key)));
+                steamItems.add(SteamItemFactory.CreateFromJson(itemJson));
             }
             catch (RuntimeException e) {
-                System.out.println("In createItemsFromMap: " + e.getMessage() + " for " + key);
+                System.out.println("In CreateItemsFromJsons: " + e.getMessage() + " for " + itemJson.getString("classid"));
             }
         }
 
-        RemoveDuplicateMarketHashNames(steamItems);
+        //RemoveDuplicateMarketHashNames(steamItems);
         return steamItems;
     }
 
-    private static void RemoveDuplicateMarketHashNames(ArrayList<SteamItem> steamItems) {
-        ArrayList<String> duplicates = GetDuplicateHashNames(steamItems);
+    private static int SumDuplicates(JSONArray duplicateClassIds, Map<String, Integer> assetCounts) {
+        int totalAmount = 0;
 
-        for (String duplicateName : duplicates) {
-            ArrayList<SteamItem> duplicateItems = new ArrayList<>();
+        for (var classIdObj : duplicateClassIds) {
+            String classId = classIdObj.toString();
+            totalAmount += assetCounts.get(classId);
+        }
 
+        return totalAmount;
+    }
 
-            for (SteamItem item : steamItems) {
-                if (Objects.equals(item.getMarketHashName(), duplicateName)) {
-                    duplicateItems.add(item);
-                }
-            }
+    private static String ParseType(JSONObject description) {
+        JSONArray tags = description.getJSONArray("tags");
+        String[] typeTagArr = tags.getJSONObject(0).getString("internal_name").split("_");
+        String typeTag = typeTagArr[typeTagArr.length - 1];
 
-            SteamItem donorObj = duplicateItems.get(0);
-            int newIndex = steamItems.indexOf(donorObj);
-            String newClassId = donorObj.getClassId();
-
-            String[] classNameArr = donorObj.getClass().getName().split("\\.");
-            String className = classNameArr[classNameArr.length - 1];
-
-            int totalAmount = 0;
-            for (SteamItem duplicateItem : duplicateItems) {
-                totalAmount += duplicateItem.getAmount();
-                steamItems.remove(duplicateItem);
-            }
-
-            SteamItem newItem = SteamItemFactory.CreateSteamItem(newClassId, totalAmount, className, duplicateName, donorObj.isMarketable());
-            steamItems.add(newIndex, newItem);
+        switch (typeTag) {
+            case "WeaponCase":
+                return "Case";
+            case "Spray":
+                return "Graffiti";
+            case "Shotgun":
+            case "SMG":
+            case "SniperRifle":
+            case "Pistol":
+            case "Rifle":
+                return "Skin";
+            case "Sticker":
+                return "Sticker";
+            default:
+                throw new NullPointerException("Type " + typeTag + " not found");
         }
     }
 
-    private static ArrayList<String> GetDuplicateHashNames(ArrayList<SteamItem> items) {
-        Map<String, Integer> hashNameCount = new HashMap<>();
+    private static void AddDuplicateClassId(JSONObject itemData, String classId) {
+        JSONArray duplicateClassIds = itemData.optJSONArray("duplicate_classids");
 
-        for (SteamItem item : items) {
-            String marketHashName = item.getMarketHashName();
-
-            if (hashNameCount.containsKey(marketHashName)) {
-                int value = hashNameCount.get(marketHashName);
-                hashNameCount.put(marketHashName, value + 1);
-                continue;
-            }
-
-            hashNameCount.put(marketHashName, 1);
+        if (duplicateClassIds == null) {
+            duplicateClassIds = new JSONArray();
         }
 
-        return new ArrayList<>(hashNameCount
-                .entrySet()
-                .stream()
-                .filter(entry -> entry.getValue() > 1)
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)).keySet());
+        AddIfNotIn(classId, duplicateClassIds);
+        itemData.put("duplicate_classids", duplicateClassIds);
     }
 
+    private static void AddIfNotIn(String element, JSONArray jsonArray) {
+        boolean alreadyAdded = false;
+        for (var duplicate : jsonArray) {
+            if (Objects.equals(duplicate.toString(), element)) {
+                alreadyAdded = true;
+            }
+        }
+
+        if (!alreadyAdded) {
+            jsonArray.put(element);
+        }
+    }
 }

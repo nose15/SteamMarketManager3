@@ -67,7 +67,7 @@ public class GUIApp {
                 continue;
             }
 
-            itemStrings.add(item.getMarketHashName() + " " + item.getPricePerPiece() + " | x" + item.getAmount());
+            itemStrings.add(item.getMarketHashName() + " $" + item.getPricePerPiece() + " | x" + item.getAmount() + " = $" + item.getTotalPrice());
         }
 
         return itemStrings;

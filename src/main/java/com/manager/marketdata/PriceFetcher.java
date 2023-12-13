@@ -10,6 +10,8 @@ import org.json.JSONTokener;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.sql.Time;
 import java.util.ArrayList;
 import java.util.Objects;
@@ -100,6 +102,7 @@ public class PriceFetcher {
 
     private float FetchSinglePrice(String marketHashName) throws FetchingException, RequestException {
         try {
+            marketHashName = URLEncoder.encode(marketHashName, StandardCharsets.UTF_8);
             JSONObject priceOverview = client.GET(marketHashName);
             return ParsePriceFromJson(priceOverview);
         } catch (ParsingException e) {
