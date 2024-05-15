@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class Main {
     public static void main(String[] args) throws URISyntaxException, ExecutionException, InterruptedException {
-        SteamMarketClient steamMarketClient = new SteamMarketClient("76561198151374664", "730", System.getenv("STEAM_SECURE"), true);
+        SteamMarketClient steamMarketClient = new SteamMarketClient("user_id", "730", System.getenv("STEAM_SECURE"), true);
         steamMarketClient.Run();
         ArrayList<SteamItem> inventory = steamMarketClient.GetInventory();
         GUIApp guiApp = GUIApp.getInstance();
